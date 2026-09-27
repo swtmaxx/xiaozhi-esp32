@@ -92,6 +92,9 @@ set(EMOTE_RESOLUTION "320_240")
 # Set default assets if the board uses partition table V2
 if(CONFIG_BOARD_TYPE_ALPHAPI_ONE_S)
     set(BOARD_DIR "alphapi/alphapi-one-s")
+    # The panel is 128x160. The shared asset packs only ship 320x240 and
+    # 360x360 emote sets, so the screen is driven by the smaller UI fonts and
+    # emoji collection rather than a dedicated emote layout.
     set(BUILTIN_TEXT_FONT font_noto_sans_basic_16_4)
     set(BUILTIN_ICON_FONT font_material_symbols_16_4)
     set(DEFAULT_EMOJI_COLLECTION noto-color-emoji_32)

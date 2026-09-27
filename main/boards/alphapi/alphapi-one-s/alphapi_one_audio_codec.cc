@@ -35,8 +35,6 @@ AlphaPiOneAudioCodec::AlphaPiOneAudioCodec(
     duplex_ = false;
     input_sample_rate_ = input_sample_rate;
     output_sample_rate_ = output_sample_rate;
-    input_channels_ = 1;
-    output_channels_ = 1;
 
     uart_config_t uart_config = {
         .baud_rate = baud_rate_,
@@ -63,19 +61,32 @@ AlphaPiOneAudioCodec::~AlphaPiOneAudioCodec() {
     }
 }
 
+namespace {
+// N32 hardware volume register range, mirrored from the header so the helper
+// below can stay a free function of the percentage alone.
+constexpr int kHardwareVolumeMax = 6;
+constexpr size_t kMaxFrameData = 200;
+}  // namespace
+
+uint8_t AlphaPiOneHardwareVolumeLevel(int volume) {
+    const int clamped = std::clamp(volume, 0, 100);
+    // Round to nearest level so the top of each band maps predictably.
+    const int level = (clamped * kHardwareVolumeMax + 50) / 100;
+    return static_cast<uint8_t>(std::clamp(level, 0, kHardwareVolumeMax));
+}
+
 void AlphaPiOneAudioCodec::Start() {
     AudioCodec::Start();
     std::lock_guard<std::mutex> lock(uart_mutex_);
-    const auto volume = static_cast<uint8_t>(std::clamp(output_volume_, 0, 100));
-    SendWriteFrameLocked(kAudioVolumeAddress, &volume, 1);
+    InitializePeripheralLocked();
+    SendVolumeLocked(output_volume_);
 }
 
 void AlphaPiOneAudioCodec::SetOutputVolume(int volume) {
     volume = std::clamp(volume, 0, 100);
     {
         std::lock_guard<std::mutex> lock(uart_mutex_);
-        const auto value = static_cast<uint8_t>(volume);
-        SendWriteFrameLocked(kAudioVolumeAddress, &value, 1);
+        SendVolumeLocked(volume);
     }
     AudioCodec::SetOutputVolume(volume);
 }
@@ -84,6 +95,9 @@ void AlphaPiOneAudioCodec::EnableInput(bool enable) {
     std::lock_guard<std::mutex> lock(uart_mutex_);
     if (enable == input_enabled_) {
         return;
+    }
+    if (enable) {
+        InitializePeripheralLocked();
     }
     SendAudioControlLocked(enable ? 1 : 0);
     AudioCodec::EnableInput(enable);
@@ -95,10 +109,12 @@ void AlphaPiOneAudioCodec::EnableOutput(bool enable) {
         return;
     }
     if (enable) {
-        SendAudioControlLocked(0);
+        InitializePeripheralLocked();
+        // 0x10 controls recording, not playback; toggling it here would cut the
+        // microphone path every time playback starts. Playback only needs the
+        // WAV header followed by PCM writes on 0x15.
         SendWavHeaderLocked();
     } else {
-        SendAudioControlLocked(0);
         wav_header_sent_ = false;
     }
     AudioCodec::EnableOutput(enable);
@@ -126,7 +142,9 @@ int AlphaPiOneAudioCodec::Read(int16_t* dest, int samples) {
 
 int AlphaPiOneAudioCodec::Write(const int16_t* data, int samples) {
     if (!output_enabled_ || samples <= 0) {
-        return samples;
+        // Nothing was written, so report zero rather than pretending the whole
+        // buffer went out.
+        return 0;
     }
 
     std::lock_guard<std::mutex> lock(uart_mutex_);
@@ -134,10 +152,12 @@ int AlphaPiOneAudioCodec::Write(const int16_t* data, int samples) {
         SendWavHeaderLocked();
     }
 
+    static_assert(kMaxFrameData <= 255,
+                  "A write frame carries a single-byte length field");
     std::array<uint8_t, kMaxFrameData> pcm{};
     int offset = 0;
     while (offset < samples) {
-        const size_t count = std::min<size_t>(kMaxFrameData, samples - offset);
+        const size_t count = std::min<size_t>(pcm.size(), samples - offset);
         for (size_t i = 0; i < count; ++i) {
             pcm[i] = static_cast<uint8_t>(
                 (static_cast<int32_t>(data[offset + i]) + 32768) >> 8);
@@ -152,7 +172,8 @@ int AlphaPiOneAudioCodec::Write(const int16_t* data, int samples) {
 
 bool AlphaPiOneAudioCodec::SendWriteFrameLocked(uint8_t address,
                                                 const uint8_t* data,
-                                                size_t length) {
+                                                size_t length,
+                                                bool await_response) {
     if (length > 255) {
         return false;
     }
@@ -175,7 +196,40 @@ bool AlphaPiOneAudioCodec::SendWriteFrameLocked(uint8_t address,
         ESP_LOGW(TAG, "UART write failed for address 0x%02x", address);
         return false;
     }
-    return uart_wait_tx_done(uart_port_, pdMS_TO_TICKS(kResponseTimeoutMs)) == ESP_OK;
+    if (uart_wait_tx_done(uart_port_, pdMS_TO_TICKS(kResponseTimeoutMs)) != ESP_OK) {
+        ESP_LOGW(TAG, "UART transmit did not drain for address 0x%02x", address);
+        return false;
+    }
+
+    if (!await_response) {
+        return true;
+    }
+
+    // The N32 answers every accepted write with [0x91][address][accepted]; wait
+    // for it so a rejected frame is not reported as success. Audio streaming
+    // skips this check to keep the 24 kHz PCM path from stalling on ACKs.
+    const TickType_t deadline = xTaskGetTickCount() +
+                                pdMS_TO_TICKS(kWriteResponseTimeoutMs);
+    while (xTaskGetTickCount() < deadline) {
+        uint8_t header = 0;
+        if (!ReadExactLocked(&header, 1)) {
+            break;
+        }
+        if (header != kWriteResponse) {
+            continue;
+        }
+        uint8_t ack[2] = {};
+        if (!ReadExactLocked(ack, sizeof(ack))) {
+            return false;
+        }
+        if (ack[0] != address) {
+            ESP_LOGW(TAG, "UART write ACK for 0x%02x, expected 0x%02x", ack[0], address);
+            return false;
+        }
+        return true;
+    }
+    ESP_LOGW(TAG, "No UART write ACK for address 0x%02x", address);
+    return false;
 }
 
 bool AlphaPiOneAudioCodec::SendReadRequestLocked(uint8_t address, size_t length) {
@@ -279,5 +333,25 @@ void AlphaPiOneAudioCodec::SendWavHeaderLocked() {
 }
 
 void AlphaPiOneAudioCodec::SendAudioControlLocked(uint8_t value) {
-    SendWriteFrameLocked(kAudioControlAddress, &value, 1);
+    SendWriteFrameLocked(kAudioControlAddress, &value, 1, true);
+}
+
+void AlphaPiOneAudioCodec::SendVolumeLocked(int volume) {
+    const uint8_t level = AlphaPiOneHardwareVolumeLevel(volume);
+    SendWriteFrameLocked(kAudioVolumeAddress, &level, 1, true);
+}
+
+void AlphaPiOneAudioCodec::InitializePeripheralLocked() {
+    if (peripheral_initialized_) {
+        return;
+    }
+    // 0x0f brings up the shared N32 peripheral bus that carries audio, the
+    // accelerometer and the other onboard devices.
+    const uint8_t enable = 1;
+    if (SendWriteFrameLocked(kPeripheralInitAddress, &enable, 1, true)) {
+        peripheral_initialized_ = true;
+        ESP_LOGI(TAG, "N32 peripheral bus initialised");
+    } else {
+        ESP_LOGW(TAG, "N32 peripheral bus initialisation failed");
+    }
 }

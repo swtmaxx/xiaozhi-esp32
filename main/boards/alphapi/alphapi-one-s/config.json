@@ -4,8 +4,7 @@
     "target": "esp32s2",
     "builds": [
         {
-            "name": "alphapi-one-s",
-            "sdkconfig_append": []
+            "name": "alphapi-one-s"
         }
     ]
 }
