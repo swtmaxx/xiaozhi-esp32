@@ -1428,6 +1428,14 @@ class NetworkComponentTests(unittest.TestCase):
 
 
 class AudioCompatibilityTests(unittest.TestCase):
+    def test_s2_excludes_tdm_box_codec(self):
+        cmake = (ROOT / "main/CMakeLists.txt").read_text(encoding="utf-8")
+        self.assertIn(
+            "if(CONFIG_IDF_TARGET_ESP32 OR CONFIG_IDF_TARGET_ESP32S2)",
+            cmake,
+        )
+        self.assertIn('"audio/codecs/box_audio_codec.cc"', cmake)
+
     def test_i2s_external_clock_field_is_version_gated(self):
         offenders = []
         for source in (ROOT / "main").rglob("*"):
