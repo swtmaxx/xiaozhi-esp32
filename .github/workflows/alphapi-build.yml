@@ -1,0 +1,33 @@
+name: Build AlphaPi One S
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build alphapi-one-s
+    runs-on: ubuntu-latest
+    container:
+      image: espressif/idf:v6.0.2
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Test build tooling
+        run: python -m unittest discover -s scripts/tests -v
+
+      - name: Build AlphaPi One S
+        shell: bash
+        run: |
+          source "$IDF_PATH/export.sh"
+          python scripts/build.py alphapi/alphapi-one-s --name alphapi-one-s
+
+      - name: Upload firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: xiaozhi_alphapi-one-s_${{ github.sha }}
+          path: build/merged-binary.bin
+          if-no-files-found: error
