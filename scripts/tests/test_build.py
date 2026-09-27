@@ -255,6 +255,7 @@ class VersionTests(unittest.TestCase):
 
         expected_partitions = {
             "esp32": '"partitions/v2/4m.csv"',
+            "esp32s2": '"partitions/v2/8m.csv"',
             "esp32c3": '"partitions/v2/16m_c3.csv"',
             "esp32c5": '"partitions/v2/16m.csv"',
             "esp32c6": '"partitions/v2/16m_c3.csv"',
@@ -290,6 +291,13 @@ class VersionTests(unittest.TestCase):
                 self.assertEqual(
                     target_defaults[
                         "CONFIG_ESPTOOLPY_FLASHSIZE_4MB"
+                    ],
+                    "y",
+                )
+            elif target == "esp32s2":
+                self.assertEqual(
+                    target_defaults[
+                        "CONFIG_ESPTOOLPY_FLASHSIZE_8MB"
                     ],
                     "y",
                 )
@@ -517,6 +525,7 @@ class BoardMenuTests(unittest.TestCase):
         )[0]
         expected = {
             "IDF_TARGET_ESP32": "BOARD_TYPE_BREAD_COMPACT_ESP32",
+            "IDF_TARGET_ESP32S2": "BOARD_TYPE_ALPHAPI_ONE_S",
             "IDF_TARGET_ESP32C3": "BOARD_TYPE_XMINI_C3_V3",
             "IDF_TARGET_ESP32C5": "BOARD_TYPE_ESP_SENSAIRSHUTTLE",
             "IDF_TARGET_ESP32C6": (
@@ -727,6 +736,10 @@ class TargetConfigurationTests(unittest.TestCase):
                     "CONFIG_PROJECT_DEFAULT=y\n",
                     encoding="utf-8",
                 )
+                Path("sdkconfig.defaults.esp32s3").write_text(
+                    "CONFIG_TARGET_DEFAULT=y\n",
+                    encoding="utf-8",
+                )
 
                 with mock.patch.object(build, "_run_idf") as run_idf:
                     build._configure_build(
@@ -751,7 +764,8 @@ class TargetConfigurationTests(unittest.TestCase):
                 run_idf.assert_called_once_with(
                     "-DIDF_TARGET=esp32s3",
                     "-DSDKCONFIG_DEFAULTS="
-                    "sdkconfig.defaults;build/xiaozhi-build.sdkconfig.defaults",
+                    "sdkconfig.defaults;sdkconfig.defaults.esp32s3;"
+                    "build/xiaozhi-build.sdkconfig.defaults",
                     "-DBOARD_NAME=test-board",
                     "reconfigure",
                     preview=False,

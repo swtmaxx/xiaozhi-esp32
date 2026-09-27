@@ -120,6 +120,7 @@ endchoice
 choice BOARD_TYPE
     prompt "Target Board"
     default BOARD_TYPE_BREAD_COMPACT_ESP32 if IDF_TARGET_ESP32
+    default BOARD_TYPE_ALPHAPI_ONE_S if IDF_TARGET_ESP32S2
     default BOARD_TYPE_XMINI_C3_V3 if IDF_TARGET_ESP32C3
     default BOARD_TYPE_ESP_SENSAIRSHUTTLE if IDF_TARGET_ESP32C5
     default BOARD_TYPE_WAVESHARE_ESP32_C6_TOUCH_AMOLED_2_06 if IDF_TARGET_ESP32C6
@@ -154,6 +155,9 @@ choice BOARD_TYPE
     config BOARD_TYPE_ATK_DNESP32S3M_WIFI
         bool "Alientek ATK-DNESP32S3M Wi-Fi (正点原子)"
         depends on IDF_TARGET_ESP32S3
+    config BOARD_TYPE_ALPHAPI_ONE_S
+        bool "AlphaPi One S"
+        depends on IDF_TARGET_ESP32S2
     config BOARD_TYPE_BREAD_COMPACT_ESP32
         bool "Bread Compact ESP32 DevKit (面包板)"
         depends on IDF_TARGET_ESP32
@@ -838,7 +842,7 @@ choice WAKE_WORD_TYPE
 
     config USE_ESP_WAKE_WORD
         bool "Wakenet model without AFE"
-        depends on IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32C5 || IDF_TARGET_ESP32C6 || (IDF_TARGET_ESP32 && SPIRAM)
+        depends on IDF_TARGET_ESP32S2 || IDF_TARGET_ESP32C3 || IDF_TARGET_ESP32C5 || IDF_TARGET_ESP32C6 || (IDF_TARGET_ESP32 && SPIRAM)
         help
             Support ESP32 C3、ESP32 C5 与 ESP32 C6, and (ESP32 with PSRAM)
 

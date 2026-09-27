@@ -8,6 +8,20 @@ on:
   pull_request:
     branches:
       - main
+  workflow_dispatch:
+    inputs:
+      board:
+        description: Board variant to build
+        required: true
+        type: choice
+        default: alphapi/alphapi-one-s
+        options:
+          - alphapi/alphapi-one-s
+      name:
+        description: Build name from the board config
+        required: true
+        type: string
+        default: alphapi-one-s
 
 permissions:
   contents: read
@@ -45,6 +59,34 @@ jobs:
           # push 到 main 分支，编译全部变体
           if [[ "$EVENT_NAME" == "push" ]]; then
             echo "variants=$ALL_VARIANTS" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+
+          # 手动构建只编译选中的板卡，避免把所有变体都排队。
+          if [[ "$EVENT_NAME" == "workflow_dispatch" ]]; then
+            BOARD="${{ inputs.board }}"
+            NAME="${{ inputs.name }}"
+            SELECTED=$(ALL_VARIANTS="$ALL_VARIANTS" BOARD="$BOARD" NAME="$NAME" python - <<'PY'
+import json
+import os
+
+variants = json.loads(os.environ["ALL_VARIANTS"])
+board = os.environ["BOARD"]
+name = os.environ["NAME"]
+selected = [
+    variant
+    for variant in variants
+    if variant["board"] == board and variant["name"] == name
+]
+if len(selected) != 1:
+    raise SystemExit(
+        f"Expected one variant for board={board!r}, name={name!r}; "
+        f"found {len(selected)}"
+    )
+print(json.dumps(selected, separators=(",", ":")))
+PY
+            )
+            echo "variants=$SELECTED" >> $GITHUB_OUTPUT
             exit 0
           fi
 

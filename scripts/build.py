@@ -20,11 +20,12 @@ os.chdir(Path(__file__).resolve().parent.parent)
 
 _DEFAULT_IDF_VERSION = (6, 0, 2)
 
-_LITE_WAKE_WORD_TARGETS = {"esp32c3", "esp32c5", "esp32c6"}
+_LITE_WAKE_WORD_TARGETS = {"esp32s2", "esp32c3", "esp32c5", "esp32c6"}
 _AFE_WAKE_WORD_TARGETS = {"esp32s3", "esp32p4", "esp32s31"}
 _ESP_WAKE_WORD_TARGETS = {"esp32", *_LITE_WAKE_WORD_TARGETS}
 _WAKE_WORD_TARGETS = (
     "esp32",
+    "esp32s2",
     "esp32c3",
     "esp32c5",
     "esp32c6",
@@ -1307,6 +1308,9 @@ def _configure_build(
     defaults = []
     if Path("sdkconfig.defaults").exists():
         defaults.append("sdkconfig.defaults")
+    target_defaults = Path(f"sdkconfig.defaults.{target}")
+    if target_defaults.exists():
+        defaults.append(target_defaults.as_posix())
     defaults.append(fragment.as_posix())
     _run_idf(
         f"-DIDF_TARGET={target}",

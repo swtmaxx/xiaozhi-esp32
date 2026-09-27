@@ -1,0 +1,11 @@
+{
+    "manufacturer": "alphapi",
+    "type": "alphapi-one-s",
+    "target": "esp32s2",
+    "builds": [
+        {
+            "name": "alphapi-one-s",
+            "sdkconfig_append": []
+        }
+    ]
+}
