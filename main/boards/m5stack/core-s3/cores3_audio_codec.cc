@@ -110,7 +110,7 @@ void CoreS3AudioCodec::CreateDuplexChannels(gpio_num_t mclk, gpio_num_t bclk, gp
         .clk_cfg = {
             .sample_rate_hz = (uint32_t)output_sample_rate_,
             .clk_src = I2S_CLK_SRC_DEFAULT,
-            .ext_clk_freq_hz = 0,
+            XIAOZHI_I2S_EXT_CLK_CONFIG
             .mclk_multiple = I2S_MCLK_MULTIPLE_256
         },
         .slot_cfg = {
@@ -143,7 +143,7 @@ void CoreS3AudioCodec::CreateDuplexChannels(gpio_num_t mclk, gpio_num_t bclk, gp
         .clk_cfg = {
             .sample_rate_hz = (uint32_t)input_sample_rate_,
             .clk_src = I2S_CLK_SRC_DEFAULT,
-            .ext_clk_freq_hz = 0,
+            XIAOZHI_I2S_EXT_CLK_CONFIG
             .mclk_multiple = I2S_MCLK_MULTIPLE_256,
             .bclk_div = 8,
         },

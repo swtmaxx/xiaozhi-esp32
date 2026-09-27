@@ -24,6 +24,15 @@
 #define XIAOZHI_I2S_PORT(port) static_cast<i2s_port_t>(port)
 #endif
 
+// ESP-IDF 6 removed i2s_std_clk_config_t::ext_clk_freq_hz. Keep the
+// designated initializer available for IDF 5 builds without passing an
+// unknown field to the IDF 6 headers.
+#if ESP_IDF_VERSION < ESP_IDF_VERSION_VAL(6, 0, 0)
+#define XIAOZHI_I2S_EXT_CLK_CONFIG .ext_clk_freq_hz = 0,
+#else
+#define XIAOZHI_I2S_EXT_CLK_CONFIG
+#endif
+
 class AudioCodec {
 public:
     AudioCodec();

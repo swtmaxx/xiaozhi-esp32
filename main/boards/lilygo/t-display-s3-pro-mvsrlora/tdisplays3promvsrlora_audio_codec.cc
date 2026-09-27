@@ -86,9 +86,7 @@ void Tdisplays3promvsrloraAudioCodec::CreateVoiceHardware(gpio_num_t mic_bclk, g
             .sample_rate_hz = static_cast<uint32_t>(11025),
             .clk_src = I2S_CLK_SRC_DEFAULT,
             .mclk_multiple = I2S_MCLK_MULTIPLE_256,
-            #ifdef   I2S_HW_VERSION_2    
-                .ext_clk_freq_hz = 0,
-            #endif
+            XIAOZHI_I2S_EXT_CLK_CONFIG
         },
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),
         .gpio_cfg ={

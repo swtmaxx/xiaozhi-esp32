@@ -1427,6 +1427,26 @@ class NetworkComponentTests(unittest.TestCase):
                 self.assertTrue((component / "include" / header).is_file())
 
 
+class AudioCompatibilityTests(unittest.TestCase):
+    def test_i2s_external_clock_field_is_version_gated(self):
+        offenders = []
+        for source in (ROOT / "main").rglob("*"):
+            if source.suffix not in {".c", ".cc", ".cpp", ".h", ".hpp"}:
+                continue
+            for line_number, line in enumerate(
+                source.read_text(encoding="utf-8", errors="replace").splitlines(),
+                1,
+            ):
+                if (
+                    ".ext_clk_freq_hz" in line
+                    and "XIAOZHI_I2S_EXT_CLK_CONFIG" not in line
+                    and not line.lstrip().startswith("//")
+                ):
+                    offenders.append(f"{source.relative_to(ROOT)}:{line_number}")
+
+        self.assertEqual(offenders, [])
+
+
 class ZipTests(unittest.TestCase):
     def test_zip_is_always_recreated(self):
         previous_cwd = Path.cwd()
