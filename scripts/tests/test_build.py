@@ -1399,6 +1399,34 @@ class BoardSourceTests(unittest.TestCase):
         self.assertEqual(missing, [])
 
 
+class NetworkComponentTests(unittest.TestCase):
+    def test_s2_uses_shared_network_without_uhci_modem_sources(self):
+        component = ROOT / "components/esp-ml307"
+        cmake = (component / "CMakeLists.txt").read_text(encoding="utf-8")
+        manifest = (component / "idf_component.yml").read_text(encoding="utf-8")
+        main_manifest = (ROOT / "main/idf_component.yml").read_text(encoding="utf-8")
+        main_cmake = (ROOT / "main/CMakeLists.txt").read_text(encoding="utf-8")
+
+        self.assertIn(
+            'if(IDF_TARGET STREQUAL "esp32s3" OR IDF_TARGET STREQUAL "esp32c3")',
+            cmake,
+        )
+        self.assertNotIn('if(NOT IDF_TARGET STREQUAL "esp32")', cmake)
+        self.assertIn("if: target in [esp32s3, esp32c3]", manifest)
+        self.assertNotIn("78/esp-ml307", main_manifest)
+        self.assertIn("esp-ml307", main_cmake)
+
+        for header in (
+            "http.h",
+            "web_socket.h",
+            "mqtt.h",
+            "udp.h",
+            "network_interface.h",
+        ):
+            with self.subTest(header=header):
+                self.assertTrue((component / "include" / header).is_file())
+
+
 class ZipTests(unittest.TestCase):
     def test_zip_is_always_recreated(self):
         previous_cwd = Path.cwd()

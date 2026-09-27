@@ -1080,6 +1080,7 @@ idf_component_register(SRCS ${SOURCES}
                         bt
                         fatfs
                         xiaozhi-fonts
+                        esp-ml307
                         ${MAIN_PRIV_REQUIRES_EXTRA}
                     )
 
