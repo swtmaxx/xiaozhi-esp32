@@ -64,7 +64,9 @@ void Tcamerapluss3AudioCodec::CreateVoiceHardware(gpio_num_t mic_bclk, gpio_num_
             .sample_rate_hz = (uint32_t)input_sample_rate_,
             .clk_src = I2S_CLK_SRC_DEFAULT,
             .mclk_multiple = I2S_MCLK_MULTIPLE_256,
-            XIAOZHI_I2S_EXT_CLK_CONFIG
+            #ifdef   I2S_HW_VERSION_2    
+                .ext_clk_freq_hz = 0,
+            #endif
         },
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_MONO),
         .gpio_cfg = {
@@ -103,7 +105,7 @@ void Tcamerapluss3AudioCodec::CreateVoiceHardware(gpio_num_t mic_bclk, gpio_num_
         .clk_cfg ={
             .sample_rate_hz = static_cast<uint32_t>(11025),
             .clk_src = I2S_CLK_SRC_DEFAULT,
-            XIAOZHI_I2S_EXT_CLK_CONFIG
+            .ext_clk_freq_hz = 0,
             .mclk_multiple = I2S_MCLK_MULTIPLE_256,
         },
         .slot_cfg = I2S_STD_PHILIPS_SLOT_DEFAULT_CONFIG(I2S_DATA_BIT_WIDTH_16BIT, I2S_SLOT_MODE_STEREO),

@@ -42,7 +42,9 @@ public:
                 .sample_rate_hz = (uint32_t)output_sample_rate_,
                 .clk_src = I2S_CLK_SRC_DEFAULT,
                 .mclk_multiple = I2S_MCLK_MULTIPLE_256,
-                XIAOZHI_I2S_EXT_CLK_CONFIG
+                #ifdef   I2S_HW_VERSION_2
+                    .ext_clk_freq_hz = 0,
+                #endif
             },
             .slot_cfg = {
                 .data_bit_width = I2S_DATA_BIT_WIDTH_16BIT,
