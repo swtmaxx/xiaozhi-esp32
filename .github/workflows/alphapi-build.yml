@@ -11,7 +11,9 @@ jobs:
     name: Build alphapi-one-s
     runs-on: ubuntu-latest
     container:
-      image: espressif/idf:v6.0.2
+      # Matches the upstream build workflow; main/idf_component.yml requires
+      # ESP-IDF >= 6.0.1.
+      image: espressif/idf:v6.1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
