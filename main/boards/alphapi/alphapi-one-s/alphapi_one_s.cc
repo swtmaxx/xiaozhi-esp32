@@ -16,6 +16,85 @@
 
 #define TAG "AlphaPiOneS"
 
+// ===========================================================================
+// ST7735 风格调参常量 —— 全部从 FW1 固件二进制逆向还原（DROM 0x24cb8~0x24cf3）
+// 硬件为 ST7789 兼容屏，厂商在标准 ST7789 驱动之上叠加了这套调参序列。
+// 缺少这套序列时屏幕能亮，但 gamma / 电源 / VCOM 参数不对，色彩会失真。
+// 详见《屏幕驱动定案报告.md》
+// ===========================================================================
+static const uint8_t kFrameRate[]        = {0x01, 0x2C, 0x2D};   // 0xB1 / 0xB2
+static const uint8_t kFrameRate3[]       = {0x01, 0x2C, 0x2D};   // 0xB3
+static const uint8_t kInversionControl[] = {0x07};               // 0xB4（注意不是 0xB5）
+static const uint8_t kPowerControl1[]    = {0xA2, 0x02, 0x84};   // 0xC0
+static const uint8_t kPowerControl2[]    = {0xC5};               // 0xC1
+static const uint8_t kPowerControl3[]    = {0x00, 0xC5};         // 0xC2
+static const uint8_t kPowerControl4[]    = {0x2A, 0x0A};         // 0xC3
+static const uint8_t kPowerControl5[]    = {0xEE, 0x8A};         // 0xC4
+static const uint8_t kVcomControl[]      = {0x0E, 0x8A};         // 0xC5
+static const uint8_t kInitialMadctl[]    = {0xC8};               // 0x36 MY=1,MX=1,MV=0,BGR=1
+static const uint8_t kColorMode[]        = {0x05};               // 0x3A RGB565 16bit
+static const uint8_t kColumnRange[]      = {0x00, 0x00, 0x00, 0x9F}; // 0x2A 列 0~159
+static const uint8_t kRowRange[]         = {0x00, 0x00, 0x00, 0x7F}; // 0x2B 行 0~127
+static const uint8_t kPositiveGamma[]    = {0x0F,0x1B,0x0F,0x17,0x33,0x2C,0x29,0x2E,
+                                            0x30,0x30,0x39,0x3F,0x00,0x07,0x03,0x10}; // 0xE0
+static const uint8_t kNegativeGamma[]    = {0x0F,0x1A,0x0F,0x18,0x2F,0x28,0x20,0x22,
+                                            0x1F,0x1B,0x23,0x37,0x00,0x07,0x02,0x10}; // 0xE1
+
+// 自定义 LCD 命令码（避免与 esp_lcd_panel_vendor.h 的命名冲突）
+#define LCD_CMD_FRMCTR1 0xB1
+#define LCD_CMD_FRMCTR2 0xB2
+#define LCD_CMD_FRMCTR3 0xB3
+#define LCD_CMD_INVCTR  0xB4
+#define LCD_CMD_PWCTR1  0xC0
+#define LCD_CMD_PWCTR2  0xC1
+#define LCD_CMD_PWCTR3  0xC2
+#define LCD_CMD_PWCTR4  0xC3
+#define LCD_CMD_PWCTR5  0xC4
+#define LCD_CMD_VMCTR1  0xC5
+#define LCD_CMD_GMCTRP1 0xE0
+#define LCD_CMD_GMCTRN1 0xE1
+
+// ---------------------------------------------------------------------------
+// ST7735 风格调参序列（严格按 FW1 固件还原的 21 条 tx_param 顺序）
+// 必须在 esp_lcd_new_panel_st7789() + esp_lcd_panel_init() 之后调用。
+// 注意：MADCTL(0x36) 在此按固件原值 0xC8 下发，因此不能用
+// esp_lcd_panel_mirror()/swap_xy()/invert_color() 覆盖——它们会重发 MADCTL
+// 并丢掉 BGR 位。
+// ---------------------------------------------------------------------------
+static void InitializeSt7735Panel(esp_lcd_panel_io_handle_t io) {
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_SWRESET, NULL, 0);
+    vTaskDelay(pdMS_TO_TICKS(150));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_SLPOUT, NULL, 0);
+    vTaskDelay(pdMS_TO_TICKS(120));
+
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_FRMCTR1, kFrameRate, sizeof(kFrameRate));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_FRMCTR2, kFrameRate, sizeof(kFrameRate));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_FRMCTR3, kFrameRate3, sizeof(kFrameRate3));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_INVCTR, kInversionControl, sizeof(kInversionControl));
+
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_PWCTR1, kPowerControl1, sizeof(kPowerControl1));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_PWCTR2, kPowerControl2, sizeof(kPowerControl2));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_PWCTR3, kPowerControl3, sizeof(kPowerControl3));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_PWCTR4, kPowerControl4, sizeof(kPowerControl4));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_PWCTR5, kPowerControl5, sizeof(kPowerControl5));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_VMCTR1, kVcomControl, sizeof(kVcomControl));
+
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_INVOFF, NULL, 0);
+
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_MADCTL, kInitialMadctl, sizeof(kInitialMadctl));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_COLMOD, kColorMode, sizeof(kColorMode));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_CASET, kColumnRange, sizeof(kColumnRange));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_RASET, kRowRange, sizeof(kRowRange));
+
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_GMCTRP1, kPositiveGamma, sizeof(kPositiveGamma));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_GMCTRN1, kNegativeGamma, sizeof(kNegativeGamma));
+
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_DISPON, NULL, 0);
+    vTaskDelay(pdMS_TO_TICKS(20));
+    esp_lcd_panel_io_tx_param(io, LCD_CMD_NORON, NULL, 0);
+    vTaskDelay(pdMS_TO_TICKS(20));
+}
+
 class AlphaPiOneS : public WifiBoard {
 private:
     Button button_a_;
@@ -55,9 +134,13 @@ private:
         ESP_ERROR_CHECK(esp_lcd_new_panel_st7789(panel_io_, &panel_config, &panel_));
         ESP_ERROR_CHECK(esp_lcd_panel_reset(panel_));
         ESP_ERROR_CHECK(esp_lcd_panel_init(panel_));
-        ESP_ERROR_CHECK(esp_lcd_panel_invert_color(panel_, DISPLAY_INVERT_COLOR));
-        ESP_ERROR_CHECK(esp_lcd_panel_swap_xy(panel_, DISPLAY_SWAP_XY));
-        ESP_ERROR_CHECK(esp_lcd_panel_mirror(panel_, DISPLAY_MIRROR_X, DISPLAY_MIRROR_Y));
+
+        // 追加厂商自定义 ST7735 风格调参序列（从固件逆向还原）。
+        // 该序列已包含 MADCTL(0x36)=0xC8 与 INVOFF(0x20)，因此不再调用
+        // esp_lcd_panel_invert_color()/swap_xy()/mirror()——它们内部会重发
+        // MADCTL 并把 BGR 位覆盖掉，导致红蓝通道对调。
+        InitializeSt7735Panel(panel_io_);
+
         ESP_ERROR_CHECK(esp_lcd_panel_disp_on_off(panel_, true));
 
         display_ = new SpiLcdDisplay(panel_io_, panel_, DISPLAY_WIDTH, DISPLAY_HEIGHT,

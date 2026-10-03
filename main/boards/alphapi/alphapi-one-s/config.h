@@ -17,13 +17,18 @@
 #define BUTTON_C_GPIO GPIO_NUM_11
 #define BUTTON_D_GPIO GPIO_NUM_10
 
-#define DISPLAY_WIDTH 128
-#define DISPLAY_HEIGHT 160
+// 分辨率 160x128（竖屏）。依据 FW1 固件逆向：
+//   CASET = 00 00 00 9F -> 列 0..159 -> 宽 160
+//   RASET = 00 00 00 7F -> 行 0..127 -> 高 128
+// 详见《屏幕驱动定案报告.md》
+#define DISPLAY_WIDTH 160
+#define DISPLAY_HEIGHT 128
 #define DISPLAY_MIRROR_X true
 #define DISPLAY_MIRROR_Y true
 #define DISPLAY_SWAP_XY false
 #define DISPLAY_INVERT_COLOR false
-#define DISPLAY_RGB_ORDER LCD_RGB_ELEMENT_ORDER_RGB
+// 固件 MADCTL = 0xC8 -> BGR = 1，必须用 BGR 否则红蓝通道对调
+#define DISPLAY_RGB_ORDER LCD_RGB_ELEMENT_ORDER_BGR
 #define DISPLAY_OFFSET_X 0
 #define DISPLAY_OFFSET_Y 0
 
