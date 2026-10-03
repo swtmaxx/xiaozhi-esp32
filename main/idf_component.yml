@@ -29,21 +29,23 @@ dependencies:
   espressif/esp_audio_effects: ~1.3.0
   espressif/esp_audio_codec: ~2.5.0
   # The cellular AT-modem component ships the shared esp_network / http_client
-  # sources that every board links, plus the NetworkResult error-handling types
-  # that main/ota.h and the notification player depend on. Version 3.7.x lifted
-  # the ESP32-S2 restriction, so the managed release resolves for AlphaPi One S
-  # and there is no longer any reason to vendor a local copy.
-  78/esp-ml307: ~3.7.3
+  # sources and the NetworkResult error-handling types that main/ota.h and the
+  # notification player depend on. It is kept as an in-tree source copy under
+  # components/esp-ml307 because its managed release pulls 78/uart-uhci, which
+  # aborts configuration on ESP32-S2 -- the S2 has no UHCI DMA controller.
+  # See components/esp-ml307/VENDORED.md.
   78/uart-uhci:
     version: ^0.3.3
     rules:
-    # UHCI is only used by the cellular modem path. It now builds for every
-    # target except plain ESP32, matching upstream esp-ml307.
-    - if: target not in [esp32]
+    # UHCI only exists on the cellular modem targets. Keep it away from
+    # ESP32-S2, where AlphaPi One S builds and uses plain Wi-Fi networking.
+    - if: target in [esp32s3, esp32c3]
   78/uart-eth-modem:
     version: ~0.6.5
     rules:
-    - if: target not in [esp32]
+    # The UART Ethernet modem board is ESP32-S3 based; its UHCI dependency is
+    # not available on ESP32-S2.
+    - if: target in [esp32s3]
   78/xiaozhi-fonts: ~2.0.0
   espressif/led_strip: ~3.0.3
   espressif/esp_codec_dev: ~1.6.2

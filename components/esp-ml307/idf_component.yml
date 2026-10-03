@@ -1,0 +1,23 @@
+dependencies:
+  idf: '>=5.5.2'
+  78/uart-uhci:
+    version: ^0.4.0
+    rules:
+    # UHCI only exists on these targets. Upstream writes "target not in [esp32]"
+    # here, which would also pull the component in for the ESP32-S2 -- and the
+    # S2 has no UHCI, so 78/uart-uhci fails configuration outright. Keep the
+    # rule aligned with the modem sources selected in CMakeLists.txt.
+    - if: target in [esp32s3, esp32c3]
+  espressif/mqtt:
+    version: ^1.0.0
+    matches:
+    - if: idf_version >=6.0
+description: ESP32 ML307 / EC801E / NT26K Cat.1 Cellular Module
+files:
+  exclude:
+  - .git
+  - dist
+license: Apache-2.0
+repository: https://github.com/78/esp-ml307
+url: https://github.com/78/esp-ml307
+version: 3.7.5
