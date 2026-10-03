@@ -40,7 +40,18 @@ static const uint8_t kPositiveGamma[]    = {0x0F,0x1B,0x0F,0x17,0x33,0x2C,0x29,0
 static const uint8_t kNegativeGamma[]    = {0x0F,0x1A,0x0F,0x18,0x2F,0x28,0x20,0x22,
                                             0x1F,0x1B,0x23,0x37,0x00,0x07,0x02,0x10}; // 0xE1
 
-// 自定义 LCD 命令码（避免与 esp_lcd_panel_vendor.h 的命名冲突）
+// 自定义 LCD 命令码。
+// ESP-IDF 6 dropped the generic LCD_CMD_* definitions that shipped with the
+// legacy panel headers, so define every command this board needs locally.
+#define LCD_CMD_SWRESET 0x01
+#define LCD_CMD_SLPOUT  0x11
+#define LCD_CMD_NORON   0x13
+#define LCD_CMD_INVOFF  0x20
+#define LCD_CMD_DISPON  0x29
+#define LCD_CMD_CASET   0x2A
+#define LCD_CMD_RASET   0x2B
+#define LCD_CMD_MADCTL  0x36
+#define LCD_CMD_COLMOD  0x3A
 #define LCD_CMD_FRMCTR1 0xB1
 #define LCD_CMD_FRMCTR2 0xB2
 #define LCD_CMD_FRMCTR3 0xB3
