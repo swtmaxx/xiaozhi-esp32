@@ -1693,31 +1693,30 @@ class BoardSourceTests(unittest.TestCase):
 
 
 class NetworkComponentTests(unittest.TestCase):
-    def test_s2_uses_shared_network_without_uhci_modem_sources(self):
+    def test_esp_ml307_is_a_managed_dependency_not_a_vendored_copy(self):
+        # The ESP32-S2 target used to need a local copy of 78/esp-ml307 because
+        # the 3.6.x releases would not resolve for it. 3.7.x removed that
+        # restriction and added the NetworkResult types that main/ota.h and the
+        # notification player rely on, so the tree must carry no copy of its
+        # own and must declare the managed release instead.
         component = ROOT / "components/esp-ml307"
-        cmake = (component / "CMakeLists.txt").read_text(encoding="utf-8")
-        manifest = (component / "idf_component.yml").read_text(encoding="utf-8")
-        main_manifest = (ROOT / "main/idf_component.yml").read_text(encoding="utf-8")
-        main_cmake = (ROOT / "main/CMakeLists.txt").read_text(encoding="utf-8")
-
-        self.assertIn(
-            'if(IDF_TARGET STREQUAL "esp32s3" OR IDF_TARGET STREQUAL "esp32c3")',
-            cmake,
+        self.assertFalse(
+            component.exists(),
+            "components/esp-ml307 must stay deleted; the managed component is "
+            "used again so that network_error.h is available to main/",
         )
-        self.assertNotIn('if(NOT IDF_TARGET STREQUAL "esp32")', cmake)
-        self.assertIn("if: target in [esp32s3, esp32c3]", manifest)
-        self.assertNotIn("78/esp-ml307", main_manifest)
-        self.assertIn("esp-ml307", main_cmake)
 
-        for header in (
-            "http.h",
-            "web_socket.h",
-            "mqtt.h",
-            "udp.h",
-            "network_interface.h",
-        ):
-            with self.subTest(header=header):
-                self.assertTrue((component / "include" / header).is_file())
+        main_manifest = (ROOT / "main/idf_component.yml").read_text(encoding="utf-8")
+        self.assertIn("78/esp-ml307: ~3.7.3", main_manifest)
+
+        # uart-uhci is pulled in by esp-ml307 itself and now builds for every
+        # target except plain ESP32, which is what lets the S2 resolve.
+        self.assertIn("target not in [esp32]", main_manifest)
+        self.assertNotIn("target in [esp32s3, esp32c3]", main_manifest)
+
+    def test_main_links_esp_ml307_sources(self):
+        main_cmake = (ROOT / "main/CMakeLists.txt").read_text(encoding="utf-8")
+        self.assertIn("esp-ml307", main_cmake)
 
 
 class AudioCompatibilityTests(unittest.TestCase):
